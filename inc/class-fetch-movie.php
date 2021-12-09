@@ -78,62 +78,62 @@ if ( ! class_exists('ddFetchMovie') ) {
                         ) );
 
                         // set terms
-                        // wp_set_object_terms($inserted_movie, $movie->genres, 'genres', true);
+                        wp_set_object_terms($inserted_movie, $movie->genres, 'genres', true);
 
-                        // // set image
-                        // $poster_base_url = 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2';
-                        // $poster_url = $poster_base_url . $movie->poster_path;
+                        // set image
+                        $poster_base_url = 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2';
+                        $poster_url = $poster_base_url . $movie->poster_path;
             
-                        // $file = array();
-                        // $file['name'] = $poster_url;
-                        // $file['tmp_name'] = download_url($poster_url);
+                        $file = array();
+                        $file['name'] = $poster_url;
+                        $file['tmp_name'] = download_url($poster_url);
                         
-                        // if (is_wp_error($file['tmp_name'])) {
-                        //     @unlink($file['tmp_name']);
-                        // } else {
-                        //     $attachmentId = media_handle_sideload($file, $inserted_movie);
+                        if (is_wp_error($file['tmp_name'])) {
+                            @unlink($file['tmp_name']);
+                        } else {
+                            $attachmentId = media_handle_sideload($file, $inserted_movie);
                              
-                        //     if ( is_wp_error($attachmentId) ) {
-                        //         @unlink($file['tmp_name']);
-                        //     } else {                
-                        //         $setted_post_thumb_id = set_post_thumbnail( $inserted_movie, $attachmentId );
-                        //     }
-                        // }
+                            if ( is_wp_error($attachmentId) ) {
+                                @unlink($file['tmp_name']);
+                            } else {                
+                                $setted_post_thumb_id = set_post_thumbnail( $inserted_movie, $attachmentId );
+                            }
+                        }
                                  
-                        // if ( is_wp_error($attachmentId) ) continue;
+                        if ( is_wp_error($attachmentId) ) continue;
             
-                        // // set custom fields
-                        // update_field( "id", $movie->id, $inserted_movie );
-                        // update_field( "release_date", $movie->release_date, $inserted_movie );
-                        // update_field( "vote_average", $movie->vote_average, $inserted_movie );
-                        // update_field( "original_language", $movie->original_language, $inserted_movie );
-                        // // update_field( "id", $movie['id'], $inserted_movie );
+                        // set custom fields
+                        update_field( "id", $movie->id, $inserted_movie );
+                        update_field( "release_date", $movie->release_date, $inserted_movie );
+                        update_field( "vote_average", $movie->vote_average, $inserted_movie );
+                        update_field( "original_language", $movie->original_language, $inserted_movie );
+                        // update_field( "id", $movie['id'], $inserted_movie );
 
-                        // if ( $movie->posters ) {
-                        //     $field_key = "posters";
-                        //     $value = array();
-                        //     foreach ($movie->posters as $item) {
+                        if ( $movie->posters ) {
+                            $field_key = "posters";
+                            $value = array();
+                            foreach ($movie->posters as $item) {
 
-                        //         $repeater_file = array();
-                        //         $repeater_file['name'] = $poster_base_url . $item->file_path;
-                        //         $repeater_file['tmp_name'] = download_url($poster_base_url . $item->file_path); 
-                        //         if (is_wp_error($repeater_file['tmp_name'])) {
-                        //             @unlink($repeater_file['tmp_name']);
-                        //         } else {
-                        //             $repeater_attachmentId = media_handle_sideload($repeater_file, $inserted_movie);
+                                $repeater_file = array();
+                                $repeater_file['name'] = $poster_base_url . $item->file_path;
+                                $repeater_file['tmp_name'] = download_url($poster_base_url . $item->file_path); 
+                                if (is_wp_error($repeater_file['tmp_name'])) {
+                                    @unlink($repeater_file['tmp_name']);
+                                } else {
+                                    $repeater_attachmentId = media_handle_sideload($repeater_file, $inserted_movie);
                                      
-                        //             if ( is_wp_error($repeater_attachmentId) ) {
-                        //                 @unlink($repeater_file['tmp_name']);
-                        //             } else {                
-                        //                 $value[] = array(
-                        //                     'image' => $repeater_attachmentId,
-                        //                 );
+                                    if ( is_wp_error($repeater_attachmentId) ) {
+                                        @unlink($repeater_file['tmp_name']);
+                                    } else {                
+                                        $value[] = array(
+                                            'image' => $repeater_attachmentId,
+                                        );
 
-                        //             }
-                        //         }
-                        //     } 
-                        //     update_field($field_key, $value, $inserted_movie);
-                        // } 
+                                    }
+                                }
+                            } 
+                            update_field($field_key, $value, $inserted_movie);
+                        } 
 
                         if ( is_wp_error( $inserted_movie ) ) {
                             continue;
@@ -159,36 +159,6 @@ if ( ! class_exists('ddFetchMovie') ) {
 
             }
         }
-
-
-        /**
-         * Get movies array from api
-         */ 
-        public function get_movies_from_api()
-        {
-            $url = "{$this->base_domain}/movie/popular?api_key={$this->api_key}&language=en-US&page={$current_page}";
-        }
-
-        // public function add_posters_to_repeater_field($poster_url )
-        // {
-        //     $file = array();
-        //     $file['name'] = $poster_url;
-        //     $file['tmp_name'] = download_url($poster_url);
-            
-        //     if (is_wp_error($file['tmp_name'])) {
-        //         @unlink($file['tmp_name']);
-        //     } else {
-        //         $attachmentId = media_handle_sideload($file, $post_id);
-                 
-        //         if ( is_wp_error($attachmentId) ) {
-        //             @unlink($file['tmp_name']);
-        //         } else {                
-        //             // $setted_post_thumb_id = set_post_thumbnail( $inserted_movie, $attachmentId );
-                    
-        //             return $setted_post_thumb_id;
-        //         }
-        //     }
-        // } 
 
         /**
          * Get movie genres by id
