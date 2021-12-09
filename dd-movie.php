@@ -155,16 +155,14 @@ if ( ! class_exists('ddMovie') )
          */
         public function enqueue_scripts()
         {
-            wp_register_script('ddMovie_main_script', plugins_url( '/assets/js/app.js', __FILE__ ), array('jquery'), time() );
-
-            wp_localize_script('ddwishlist_main_script', 'ddwishlist_ajax', array(
+            wp_enqueue_script('ddMovie_main_script', plugins_url( '/assets/dist/bundle.js', __FILE__ ), array( 'jquery', 'wp-element' ), wp_rand(), true );
+            wp_localize_script('ddMovie_main_script', 'ddwishlist_ajax', array(
                 'ajaxurl' => admin_url('admin-ajax.php'),
                 'nonce' => wp_create_nonce('_wpnonce'),
                 "resturl" => esc_url_raw( rest_url() ),
-                'title' => esc_html__('ddWishlist test title', 'ddWishlist'),
             ));
 
-            wp_enqueue_script( 'ddwishlist_main_script' );
+            // wp_enqueue_script( 'ddwishlist_main_script' );
         }
 
 
