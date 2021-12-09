@@ -12,57 +12,34 @@ if ( ! class_exists('ddFetchMovie') ) {
 
         public function __construct()
         {
-            // add_action( 'init', [$this, 'add_movies'] );
-            // add_action( 'init', [$this, 'add_taxonomies'] );
-        }
-        
-
-        public function add_taxonomies()
-        {
             include_once( ABSPATH . 'wp-admin/includes/admin.php' );
 
-
-            $post_id_temp = 1298;
-            $poster_base_url = 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2';
-            $poster_url = "{$poster_base_url}/rjkmN1dniUHVYAtwuV3Tji7FsDO.jpg";
-
-            $file = array();
-            $file['name'] = $poster_url;
-            $file['tmp_name'] = download_url($poster_url);
-            
-            if (is_wp_error($file['tmp_name'])) {
-                @unlink($file['tmp_name']);
-            } else {
-                $attachmentId = media_handle_sideload($file, $post_id);
-                 
-                if ( is_wp_error($attachmentId) ) {
-                    @unlink($file['tmp_name']);
-                } else {                
-                    $setted_post_thumb_id = set_post_thumbnail( $post_id_temp, $attachmentId );
-                }
-            }
-                     
-            // if ( is_wp_error($attachmentId) ) continue;
-
-            vd( $setted_post_thumb_id );
+            add_action( 'wp_ajax_get_add_movies', [$this, 'add_movies'] );
+            add_action( 'wp_ajax_nopriv_add_movies', [$this, 'add_movies'] );
+            // add_action( 'admin_init', [$this, 'add_movies'] );
         }
-
-        // add_movies 
-        // insert_movies
-        // fetch_movies
+         
+        // add movies
+        // - get_movies_from_api (fetch movie)
+        // - insert movie
+        // ---- set movie main image
+        // ---- add custom fields data
+        // ---- go to the next api page
 
         public function add_movies()
         {
-            $url = "{$this->base_domain}/movie/popular?api_key={$this->api_key}&language=en-US&page=1";
+            $current_page = ( ! empty($_POST['current_page']) ) ? $_POST['current_page'] : 1;
+            $this->get_movies_from_api($current_page);
 
             $response = wp_remote_get( $url, array(
                 'timeout' => 30,
                 'sslverify' => false,
             ) );
-
             if ( is_wp_error( $response ) ){
                 echo $response->get_error_message();
             }
+
+            // return $response;
 
             else if ( wp_remote_retrieve_response_code( $response ) === 200 ){
                 $body = wp_remote_retrieve_body( $response );
@@ -72,32 +49,20 @@ if ( ! class_exists('ddFetchMovie') ) {
                     return false;
                 }
 
+                // 
+                print_r( $movies );
+                wp_die();
+
                 // insert
                 foreach ( $movies->results as $key => $movie ) {
-                    // pr( $movie );
-                    // id
-                    // original_language
-                    // title
-                    // overview
-                    // release_date
-                    // poster_path
-                    // vote_average
-
                     // get genres for current movie
 
                     $genres_temp = $this->get_movie_genres_by_id( $movie->id );
-                    // $movie->posters = $this->get_movie_images_by_id( $movie->id );
+                    $movie->posters = $this->get_movie_images_by_id( $movie->id );
                     foreach ( $genres_temp as $genre ) {
                         $movie->genres[] = $genre->name;
                     }
 
-                    pr( $movie );
-                    wp_die();
-                    
-                    // load image
-                    
-                    // $poster_base_url = 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2';
-                    // $poster_path = "{$poster_base_url}/rjkmN1dniUHVYAtwuV3Tji7FsDO.jpg";
 
                     // insert
                     $movie_slug = sanitize_title( $movie->title );
@@ -107,22 +72,123 @@ if ( ! class_exists('ddFetchMovie') ) {
                         $inserted_movie = wp_insert_post( array(
                             'post_name' => $movie_slug,
                             'post_title' => $movie_slug,
+                            'post_content' => $movie->overview,
                             'post_type' => 'movies',
                             'post_status' => 'publish' 
                         ) );
 
-                        wp_set_object_terms($inserted_movie, $movie->genres, 'genres', true);
+                        // set terms
+                        // wp_set_object_terms($inserted_movie, $movie->genres, 'genres', true);
 
+                        // // set image
+                        // $poster_base_url = 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2';
+                        // $poster_url = $poster_base_url . $movie->poster_path;
             
+                        // $file = array();
+                        // $file['name'] = $poster_url;
+                        // $file['tmp_name'] = download_url($poster_url);
+                        
+                        // if (is_wp_error($file['tmp_name'])) {
+                        //     @unlink($file['tmp_name']);
+                        // } else {
+                        //     $attachmentId = media_handle_sideload($file, $inserted_movie);
+                             
+                        //     if ( is_wp_error($attachmentId) ) {
+                        //         @unlink($file['tmp_name']);
+                        //     } else {                
+                        //         $setted_post_thumb_id = set_post_thumbnail( $inserted_movie, $attachmentId );
+                        //     }
+                        // }
+                                 
+                        // if ( is_wp_error($attachmentId) ) continue;
+            
+                        // // set custom fields
+                        // update_field( "id", $movie->id, $inserted_movie );
+                        // update_field( "release_date", $movie->release_date, $inserted_movie );
+                        // update_field( "vote_average", $movie->vote_average, $inserted_movie );
+                        // update_field( "original_language", $movie->original_language, $inserted_movie );
+                        // // update_field( "id", $movie['id'], $inserted_movie );
+
+                        // if ( $movie->posters ) {
+                        //     $field_key = "posters";
+                        //     $value = array();
+                        //     foreach ($movie->posters as $item) {
+
+                        //         $repeater_file = array();
+                        //         $repeater_file['name'] = $poster_base_url . $item->file_path;
+                        //         $repeater_file['tmp_name'] = download_url($poster_base_url . $item->file_path); 
+                        //         if (is_wp_error($repeater_file['tmp_name'])) {
+                        //             @unlink($repeater_file['tmp_name']);
+                        //         } else {
+                        //             $repeater_attachmentId = media_handle_sideload($repeater_file, $inserted_movie);
+                                     
+                        //             if ( is_wp_error($repeater_attachmentId) ) {
+                        //                 @unlink($repeater_file['tmp_name']);
+                        //             } else {                
+                        //                 $value[] = array(
+                        //                     'image' => $repeater_attachmentId,
+                        //                 );
+
+                        //             }
+                        //         }
+                        //     } 
+                        //     update_field($field_key, $value, $inserted_movie);
+                        // } 
+
                         if ( is_wp_error( $inserted_movie ) ) {
                             continue;
                         }
 
                     }
+                    // end insert if
                 }
+
+                // go to the next page
+                if ( $current_page > 2 ) {
+                    return;
+                }
+
+                $current_page =  $current_page + 1;
+                wp_remote_post( admin_url('admin-ajax.php?action=add_movies'), array(
+                    'blocking' => false,
+                    'sslverify' => false,
+                    'body' => array(
+                        'current_page' => $current_page,
+                    ),
+                ) );
 
             }
         }
+
+
+        /**
+         * Get movies array from api
+         */ 
+        public function get_movies_from_api()
+        {
+            $url = "{$this->base_domain}/movie/popular?api_key={$this->api_key}&language=en-US&page={$current_page}";
+        }
+
+        // public function add_posters_to_repeater_field($poster_url )
+        // {
+        //     $file = array();
+        //     $file['name'] = $poster_url;
+        //     $file['tmp_name'] = download_url($poster_url);
+            
+        //     if (is_wp_error($file['tmp_name'])) {
+        //         @unlink($file['tmp_name']);
+        //     } else {
+        //         $attachmentId = media_handle_sideload($file, $post_id);
+                 
+        //         if ( is_wp_error($attachmentId) ) {
+        //             @unlink($file['tmp_name']);
+        //         } else {                
+        //             // $setted_post_thumb_id = set_post_thumbnail( $inserted_movie, $attachmentId );
+                    
+        //             return $setted_post_thumb_id;
+        //         }
+        //     }
+        // } 
 
         /**
          * Get movie genres by id
@@ -171,7 +237,10 @@ if ( ! class_exists('ddFetchMovie') ) {
                 }
             }
 
-            return $movie_details->posters;
+            // get first 4 elements (exclude first)
+            $posters = array_slice($movie_details->backdrops, 1, 4, true);
+
+            return $posters;
         }
 
         // ========================================================================
