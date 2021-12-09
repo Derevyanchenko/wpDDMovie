@@ -14,22 +14,6 @@ if( ! defined('ABSPATH') ) {
     die;
 }
 
-/***
- * План по разработке 
- * 
- * 1. Класс получения листа фильмов
- * 2. запись фильмов в Кастом пост тайп
- * 3. Обновление всех данных в custom fields
- * 4. render shortcode 
- * 5. add front (html, css, js)
- * . render frontend SPA - react
- * ==========================
- * 
- * для получения всей инфы о фильме, а не только базовой можно сделать так:
- * 
- * - функция - получаем 10 фильмов для теста и записываем id вставленного поста в массив, потом в конце этой функции мы делаем функцию, которая проходит циклом по массиву вставленных постов и отправляет по каждому get запрос в api на получение фулл данных о фильме и обновляет остальные кастомные поля.
- */ 
-
 define('DDMOVIE_PATH', plugin_dir_path(__FILE__));
 
 // Define path and URL to the ACF plugin.
@@ -52,10 +36,13 @@ if ( ! class_exists('ddFetchMovie') ) {
     require DDMOVIE_PATH . 'inc/class-fetch-movie.php';
 }
 
-// // if ( ! class_exists('insertMovie') ) {
-// //     require DDMOVIE_PATH . 'inc/class-insert-movie.php';
-// // }
+if ( ! class_exists( 'Gamajo_Template_Loader' ) ) {
+    require DDMOVIE_PATH . 'inc/class-gamajo-template-loader.php';
+}
 
+if ( ! class_exists( 'ddMovie_Template_Loader' ) ) {
+    require DDMOVIE_PATH . 'inc/class-wpddmovie-template-loader.php';
+}
 
 if ( ! class_exists('ddMovie') ) 
 {
@@ -64,8 +51,9 @@ if ( ! class_exists('ddMovie') )
     {
         public function __construct() 
         {
-            // add_action('wp_enqueue_scripts', [$this, 'enqueue_styles']);
-            // add_action('wp_enqueue_scripts', [$this, 'enqueue_scripts']);
+            add_action('wp_enqueue_scripts', [$this, 'enqueue_styles']);
+            add_action('wp_enqueue_scripts', [$this, 'enqueue_scripts']);
+            add_action( 'rest_api_init', [$this, 'rest_api'] );
 
             // add_action( 'init', [$this, 'ddWishlist_create_settings_pages'] );
             // add_action()
@@ -73,10 +61,56 @@ if ( ! class_exists('ddMovie') )
             // add_action( 'init', [$this, 'run'] );
         }
 
-        public function run()
+        /**
+         * Rest api routes
+         */ 
+        public function rest_api()
         {
-            echo '<h1>Run dd21321 Movie!</h1>';
+            register_rest_route('ddmovie/v1', '/movies/', array(
+                array(
+                    'methods'  => 'GET',
+                    'callback' => [$this, 'rest_api_get_movies'],
+                    'permission_callback' => function() {
+                        return true;
+                    }
+                ),
+            ) );
         }
+
+        /**
+         * rest_api_get_movies
+         **/ 
+        function rest_api_get_movies($req) {
+            $posts =  new WP_Query( array(
+                'numberposts' => 20,
+                'post_type' => 'movies',
+                'posts_per_page' => 20,
+            ) );
+
+            if ( $posts->have_posts() ) {
+                while ( $posts->have_posts() ) {
+                    $posts->the_post();
+
+                    // add custom fields for array
+                    $response[] = array(
+                        'title' => get_the_title(),
+                        'content' => get_the_content(),
+                        'link' => get_the_permalink(),
+                        'thubmnail' => get_the_post_thumbnail_url(),
+                        'release_date' => get_field("release_date"),
+                        'vote_average' => get_field("vote_average"),
+                        'original_language' => get_field("original_language"),
+                        'posters' => get_field("posters"),
+                        'genres' => wp_get_post_terms( get_the_ID(), 'genres' ),
+                    );
+
+                }
+                wp_reset_postdata();
+            }
+
+            return $response;
+        }
+        
 
         /**
          * Create settings page for 'Wishlist' 
@@ -113,7 +147,7 @@ if ( ! class_exists('ddMovie') )
          */
         public function enqueue_styles()
         {
-            wp_enqueue_style('ddWishlist_main_style', plugins_url( '/assets/css/main.css', __FILE__ ));
+            wp_enqueue_style('ddMovie_main_style', plugins_url( '/assets/css/main.css', __FILE__ ));
         }
 
         /**
@@ -121,11 +155,12 @@ if ( ! class_exists('ddMovie') )
          */
         public function enqueue_scripts()
         {
-            wp_register_script('ddwishlist_main_script', plugins_url( '/assets/js/main.js', __FILE__ ), array('jquery'), time() );
+            wp_register_script('ddMovie_main_script', plugins_url( '/assets/js/app.js', __FILE__ ), array('jquery'), time() );
 
             wp_localize_script('ddwishlist_main_script', 'ddwishlist_ajax', array(
                 'ajaxurl' => admin_url('admin-ajax.php'),
                 'nonce' => wp_create_nonce('_wpnonce'),
+                "resturl" => esc_url_raw( rest_url() ),
                 'title' => esc_html__('ddWishlist test title', 'ddWishlist'),
             ));
 

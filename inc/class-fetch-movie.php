@@ -29,7 +29,7 @@ if ( ! class_exists('ddFetchMovie') ) {
         public function add_movies()
         {
             $current_page = ( ! empty($_POST['current_page']) ) ? $_POST['current_page'] : 1;
-            $this->get_movies_from_api($current_page);
+            $url = "{$this->base_domain}/movie/popular?api_key={$this->api_key}&language=en-US&page={$current_page}";
 
             $response = wp_remote_get( $url, array(
                 'timeout' => 30,
@@ -49,10 +49,6 @@ if ( ! class_exists('ddFetchMovie') ) {
                     return false;
                 }
 
-                // 
-                print_r( $movies );
-                wp_die();
-
                 // insert
                 foreach ( $movies->results as $key => $movie ) {
                     // get genres for current movie
@@ -67,8 +63,9 @@ if ( ! class_exists('ddFetchMovie') ) {
                     // insert
                     $movie_slug = sanitize_title( $movie->title );
                     $existing_movie = get_page_by_path( $movie_slug, 'OBJECT', 'movies' );
+                    
 
-                    if ( $existing_movie == null ) {
+                    if ( ! is_object( $existing_movie )  ) {
                         $inserted_movie = wp_insert_post( array(
                             'post_name' => $movie_slug,
                             'post_title' => $movie_slug,
