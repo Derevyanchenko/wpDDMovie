@@ -75,16 +75,30 @@ if ( ! class_exists('ddMovie') )
                     }
                 ),
             ) );
+
+            register_rest_route('ddmovie/v1', '/search/', array(
+                array(
+                    'methods'  => 'GET',
+                    'callback' => [$this, 'rest_api_search_movies'],
+                    'permission_callback' => function() {
+                        return true;
+                    }
+                ),
+            ) );
         }
 
         /**
          * rest_api_get_movies
          **/ 
         function rest_api_get_movies($req) {
+            $page = $_GET['page'] ? absint( $_GET['page'] ) : 1;
+
             $posts =  new WP_Query( array(
-                'numberposts' => 20,
+                'numberposts' => -1,
                 'post_type' => 'movies',
                 'posts_per_page' => 20,
+                'paged' => $page,
+                // "offset" => 20,
             ) );
 
             if ( $posts->have_posts() ) {
@@ -102,6 +116,42 @@ if ( ! class_exists('ddMovie') )
                         'original_language' => get_field("original_language"),
                         'posters' => get_field("posters"),
                         'genres' => wp_get_post_terms( get_the_ID(), 'genres' ),
+                    );
+
+                }
+                wp_reset_postdata();
+            }
+
+            return $response;
+        }
+
+        /**
+         * rest_api_search_movies
+         **/ 
+        function rest_api_search_movies($req) {
+            $searchData = $req['search'];
+
+            $posts =  new WP_Query( array(
+                'numberposts' => 20,
+                'post_type' => 'movies',
+                'posts_per_page' => 20,
+                "s" => $searchData,
+                "fields" => 'ids',
+
+            ) );
+
+            if ( $posts->have_posts() ) {
+                while ( $posts->have_posts() ) {
+                    $posts->the_post();
+
+                    // add custom fields for array
+                    $response[] = array(
+                        'title' => get_the_title(),
+                        'link' => get_the_permalink(),
+                        'thubmnail' => get_the_post_thumbnail_url(),
+                        'genres' => wp_get_post_terms( get_the_ID(), 'genres' ),
+                        'vote_average' => get_field("vote_average"),
+                        'release_date' => get_field("release_date"),
                     );
 
                 }
@@ -156,7 +206,7 @@ if ( ! class_exists('ddMovie') )
         public function enqueue_scripts()
         {
             wp_enqueue_script('ddMovie_main_script', plugins_url( '/assets/dist/bundle.js', __FILE__ ), array( 'jquery', 'wp-element' ), wp_rand(), true );
-            wp_localize_script('ddMovie_main_script', 'ddwishlist_ajax', array(
+            wp_localize_script('ddMovie_main_script', 'ddMovie', array(
                 'ajaxurl' => admin_url('admin-ajax.php'),
                 'nonce' => wp_create_nonce('_wpnonce'),
                 "resturl" => esc_url_raw( rest_url() ),
